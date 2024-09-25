@@ -13,6 +13,7 @@ import android.util.Log
 
 
 class GetBLE (private val context: Context){
+    //hoge
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private val bluetoothLeScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
     private var scanCallback: ScanCallback? = null
