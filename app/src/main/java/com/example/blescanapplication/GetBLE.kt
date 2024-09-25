@@ -12,14 +12,14 @@ import android.content.Context
 import android.util.Log
 
 
-class GetBLE (private val context: Context){
+class GetBLE (private val context: Context, private val gattCallback: GattCallback){
     //hoge
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private val bluetoothLeScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
     private var scanCallback: ScanCallback? = null
     private var accessDevice:String?=null
     private var bluetoothGatt: BluetoothGatt? = null
-    private val gattCallback = GattCallback()
+
 
     @SuppressLint("MissingPermission")
     fun startScan() {
