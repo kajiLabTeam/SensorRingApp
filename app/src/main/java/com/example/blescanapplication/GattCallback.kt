@@ -40,8 +40,8 @@ class GattCallback : BluetoothGattCallback() {
         if (reconnectAttempts < maxReconnectAttempts) {
             Log.d("GattCallback", "再接続を $reconnectDelay ms 後に試みます...")
             handler.postDelayed({
-                gatt?.close()
-                gatt?.connect() // 再接続を試みる
+                gatt?.close() // 既存の接続を閉じる
+                gatt?.connect() // 再接続を試みる (ここは必要に応じて実装)
                 reconnectAttempts++
             }, reconnectDelay)
         } else {
@@ -51,57 +51,55 @@ class GattCallback : BluetoothGattCallback() {
 
     @SuppressLint("MissingPermission")
     override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
-        super.onServicesDiscovered(gatt, status)
         if (status == BluetoothGatt.GATT_SUCCESS) {
-            Log.d("GattCallback", "サービスが発見されました。")
-            val service: BluetoothGattService? =
-                gatt?.getService(UUID.fromString("88888888-4abd-ba0d-b7c6-ff0a00200021"))
-            val controlCharacteristic: BluetoothGattCharacteristic? =
-                service?.getCharacteristic(UUID.fromString("88888888-4abd-ba0d-b7c6-ff0a00200022"))
-
-            if (controlCharacteristic != null) {
-                // キャラクタリスティックが読み取り可能か確認
-                if (controlCharacteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
-                    gatt.readCharacteristic(controlCharacteristic)
-                    Log.d("GattCallback", "キャラクタリスティックの読み取りを試みています。")
-                } else {
-                    Log.e("GattCallback", "キャラクタリスティックは読み取りプロパティを持っていません。")
-                }
-            } else {
-                Log.e("GattCallback", "キャラクタリスティックが見つかりません。")
+            val service: BluetoothGattService? = gatt?.getService(UUID.fromString("88888888-4abd-ba0d-b7c6-ff0a00200021"))
+            val characteristic: BluetoothGattCharacteristic? = service?.getCharacteristic(UUID.fromString("88888888-4abd-ba0d-b7c6-ff0a00200022"))
+            if (characteristic != null && characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
+                gatt.readCharacteristic(characteristic)
             }
-        } else {
-            Log.e("GattCallback", "サービス発見エラー: $status")
         }
     }
+
 
     private var readAttempts = 0
     private val maxReadAttempts = 5 // 最大読み取り試行回数
 
+    @Deprecated("Deprecated in Java")
     @SuppressLint("MissingPermission")
-    override fun onCharacteristicRead(
-        gatt: BluetoothGatt?,
-        characteristic: BluetoothGattCharacteristic?,
-        status: Int
-    ) {
-        super.onCharacteristicRead(gatt, characteristic, status)
+    override fun onCharacteristicRead(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?, status: Int) {
         if (status == BluetoothGatt.GATT_SUCCESS) {
-            characteristic?.let {
-                val value = it.value
-                if (value != null && value.isNotEmpty()) {
-                    val dataString = value.toString(Charsets.UTF_8)
-                    Log.d("GattCallback", "キャラクタリスティック読み取り: ${it.uuid} - 値: $dataString")
-                    readAttempts = 0 // 成功した場合、リトライカウントをリセット
-                } else {
-                    Log.e("GattCallback", "キャラクタリスティック読み取り: ${it.uuid} - 値がnullまたは空です。")
-                    attemptReadCharacteristic(gatt, characteristic) // 再試行
-                }
+            // 読み取ったデータを取得
+            val data = characteristic?.value
+
+            // データをログに出力
+            if (data != null) {
+                val dataString = data.toString(Charsets.UTF_8) // バイト配列を文字列に変換
+                Log.d("BLEData", "読み取ったデータ: $dataString")
+            } else {
+                Log.d("BLEData", "データが null です")
             }
         } else {
-            Log.e("GattCallback", "キャラクタリスティック読み取りエラー: $status")
-            attemptReadCharacteristic(gatt, characteristic) // 再試行
+            Log.e("BLEData", "キャラクタリスティックの読み取りに失敗しました。ステータス: $status")
+            attemptReadCharacteristic(gatt,characteristic)
         }
     }
+
+    override fun onCharacteristicRead(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        value: ByteArray,
+        status: Int
+    ) {
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            // バイト配列を16進数の文字列に変換
+            val hexString = value.joinToString(" ") { String.format("%02X", it) }
+            Log.d("newBLEData", "読み取ったデータ: $hexString")
+        } else {
+            Log.e("newBLEData", "キャラクタリスティックの読み取りに失敗しました。ステータス: $status")
+            attemptReadCharacteristic(gatt, characteristic)
+        }
+    }
+
 
     @SuppressLint("MissingPermission")
     private fun attemptReadCharacteristic(
@@ -148,5 +146,36 @@ class GattCallback : BluetoothGattCallback() {
     private fun ByteArray.toHexString(): String {
         return joinToString("") { String.format("%02x", it) }
     }
+
+    fun logCharacteristicProperties(characteristic: BluetoothGattCharacteristic) {
+        val properties = characteristic.properties
+
+        Log.d("GattCallback", "キャラクタリスティックのプロパティ:")
+        if (properties and BluetoothGattCharacteristic.PROPERTY_BROADCAST != 0) {
+            Log.d("GattCallback", "BROADCAST")
+        }
+        if (properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
+            Log.d("GattCallback", "READ")
+        }
+        if (properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) {
+            Log.d("GattCallback", "WRITE")
+        }
+        if (properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0) {
+            Log.d("GattCallback", "WRITE_NO_RESPONSE")
+        }
+        if (properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) {
+            Log.d("GattCallback", "NOTIFY")
+        }
+        if (properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0) {
+            Log.d("GattCallback", "INDICATE")
+        }
+        if (properties and BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE != 0) {
+            Log.d("GattCallback", "SIGNED_WRITE")
+        }
+        if (properties and BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS != 0) {
+            Log.d("GattCallback", "EXTENDED_PROPS")
+        }
+    }
+
 }
 
