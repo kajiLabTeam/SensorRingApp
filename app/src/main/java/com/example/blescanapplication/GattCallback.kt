@@ -29,6 +29,7 @@ class GattCallback : BluetoothGattCallback() {
             if (newState == BluetoothGatt.STATE_CONNECTED) {
                 Log.d("GattCallback", "GATTサーバーに接続されました。")
                 reconnectAttempts = 0 // 成功したのでリセット
+                gatt?.requestMtu(40)
                 gatt?.discoverServices()
             } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
                 Log.d("GattCallback", "GATTサーバーから切断されました。")
@@ -177,9 +178,9 @@ class GattCallback : BluetoothGattCallback() {
             val dataParts = dataString.split(",").filter { it.isNotEmpty() } // 空の要素を除去
 
             // 必要な数のデータが揃っているか確認
-            if (dataParts.size < 4) {
+            if (dataParts.size < 5) {
                 Log.d("GattCallback", "加速度: $dataString")
-                return
+
             }
 
             // 不正な値をチェック
