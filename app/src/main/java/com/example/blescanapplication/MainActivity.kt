@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BLEScanApplicationTheme {
-                MainContent(gattCallback, accelerationData)
+                MainContent(gattCallback)
             }
         }
     }
@@ -91,23 +91,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun MainContent(gattCallback: GattCallback, accelerationData: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.TopCenter
-    ) {
-        // 加速度データの表示
-        Text(text = accelerationData, modifier = Modifier.padding(16.dp))
-
-        Box(
-            modifier = Modifier.fillMaxSize(0.9f),
-            contentAlignment = Alignment.BottomCenter
-        ) {
-            GreetingButton(gattCallback)
-        }
-    }
-}
+//fun MainContent(gattCallback: GattCallback, data: String) {
+//    Box(
+//        modifier = Modifier.fillMaxSize(),
+//        contentAlignment = Alignment.Center
+//    ) {
+//        // 加速度データの表示
+//        Text(text = data, modifier = Modifier.padding(16.dp))
+//
+//        Box(
+//            modifier = Modifier.fillMaxSize(0.9f),
+//            contentAlignment = Alignment.BottomCenter
+//        ) {
+//            GreetingButton(gattCallback)
+//        }
+//    }
+//}
 
 @Composable
 fun GreetingButton(gattCallback: GattCallback) {

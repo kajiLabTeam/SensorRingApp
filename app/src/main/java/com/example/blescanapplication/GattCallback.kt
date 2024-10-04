@@ -65,7 +65,7 @@ class GattCallback : BluetoothGattCallback() {
                 gatt?.getService(UUID.fromString("88888888-4abd-ba0d-b7c6-ff0a00200021"))
             val controlCharacteristic: BluetoothGattCharacteristic? =
                 service?.getCharacteristic(UUID.fromString("88888888-4abd-ba0d-b7c6-ff0a00200022"))
-            val accCharacteristic: BluetoothGattCharacteristic? =
+            val dataCharacteristic: BluetoothGattCharacteristic? =
                 service?.getCharacteristic(UUID.fromString("88888888-4abd-ba0d-b7c6-ff0a00200023"))
 
             // 制御キャラクタリスティックを読み取る
@@ -75,9 +75,9 @@ class GattCallback : BluetoothGattCallback() {
                 }
             }
 
-            accCharacteristic?.let {
+            dataCharacteristic?.let {
                 if (it.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) {
-                    Log.d("GattCallback", "加速度キャラクタリスティックに通知がサポートされています。")
+                    Log.d("GattCallback", "キャラクタリスティックに通知がサポートされています。")
                     gatt.setCharacteristicNotification(it, true)
 
                     val descriptor = it.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
@@ -94,7 +94,7 @@ class GattCallback : BluetoothGattCallback() {
                         }
                     }
                 } else {
-                    Log.e("GattCallback", "加速度キャラクタリスティックは通知をサポートしていません。")
+                    Log.e("GattCallback", "キャラクタリスティックは通知をサポートしていません。")
                 }
             }
         }
@@ -178,14 +178,14 @@ class GattCallback : BluetoothGattCallback() {
             val dataParts = dataString.split(",").filter { it.isNotEmpty() } // 空の要素を除去
 
             // 必要な数のデータが揃っているか確認
-            if (dataParts.size < 5) {
-                Log.d("GattCallback", "加速度: $dataString")
+            if (dataParts.size < 8) {
+                Log.d("GattCallback", "データ: $dataString")
 
             }
 
             // 不正な値をチェック
             if (dataParts.any { it == "-" }) {
-                Log.d("GattCallback", "受: $dataString")
+                Log.e("GattCallback", "エラー: $dataString")
                 return
             }
 
