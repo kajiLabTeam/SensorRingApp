@@ -23,6 +23,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -32,7 +34,10 @@ import androidx.core.content.ContextCompat
 import com.example.blescanapplication.ui.theme.BLEScanApplicationTheme
 
 class MainActivity : ComponentActivity() {
-    private lateinit var gattCallback:GattCallback
+
+    private lateinit var gattCallback: GattCallback
+    private var accelerationData: String by mutableStateOf("時間, x, y, z")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -46,21 +51,22 @@ class MainActivity : ComponentActivity() {
 
         // パーミッションをチェック
         if (!hasPermissions(permissions)) {
-            // 必要なパーミッションがない場合、リクエスト
             ActivityCompat.requestPermissions(this, permissions, 1000)
         }
 
         // BLEデバイスのスキャンを開始
         gattCallback = GattCallback()
-
-        val getble = GetBLE(this,gattCallback)
+        gattCallback.setDataListener { data ->
+            accelerationData = data // 受信したデータを保持
+        }
+        val getble = GetBLE(this, gattCallback)
         getble.startScan()
 
         // UIを設定
         enableEdgeToEdge()
         setContent {
             BLEScanApplicationTheme {
-                MainContent()
+                MainContent(gattCallback, accelerationData)
             }
         }
     }
@@ -77,34 +83,34 @@ class MainActivity : ComponentActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 1000) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-
+                // パーミッションが許可された場合の処理
             } else {
                 // パーミッションが拒否された場合の処理
-                // ここでユーザーにパーミッションの重要性を説明することができます
             }
         }
     }
 }
 
 @Composable
-fun MainContent() {
-    // ボックスを使ってコンテンツ全体を配置
+fun MainContent(gattCallback: GattCallback, accelerationData: String) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center // ボタンを下部中央に配置
+        contentAlignment = Alignment.TopCenter
     ) {
+        // 加速度データの表示
+        Text(text = accelerationData, modifier = Modifier.padding(16.dp))
+
         Box(
             modifier = Modifier.fillMaxSize(0.9f),
-            contentAlignment = Alignment.BottomCenter // ボタンを下部中央に配置
+            contentAlignment = Alignment.BottomCenter
         ) {
-            GreetingButton()
+            GreetingButton(gattCallback)
         }
     }
 }
 
-
 @Composable
-fun GreetingButton() {
+fun GreetingButton(gattCallback: GattCallback) {
     // ボタンの状態を保持する
     val isOn = remember { mutableStateOf(false) }
 
@@ -112,8 +118,12 @@ fun GreetingButton() {
         onClick = {
             // ボタンがクリックされたときに状態を切り替え
             isOn.value = !isOn.value
+
+            // 書き込みたい値を決定
+            val valueToWrite = if (isOn.value) byteArrayOf(0x00) else byteArrayOf(0x01)
+            // BluetoothGattに値を書き込む
+            gattCallback.writeValueToCharacteristic(valueToWrite)
         },
-        // Paddingを設定する
         contentPadding = PaddingValues(
             start = 20.dp,
             top = 12.dp,
@@ -121,11 +131,7 @@ fun GreetingButton() {
             bottom = 12.dp
         )
     ) {
-        // 状態に応じて表示するテキストを変更
-        Text(text = if (isOn.value) "OFF" else "ON")
-
-
-        // 必要に応じてアイコンを追加
+        Text(text = if (isOn.value) "ON" else "OFF")
         Icon(
             imageVector = Icons.Filled.Favorite,
             contentDescription = "Favorite",
@@ -135,10 +141,49 @@ fun GreetingButton() {
     }
 }
 
+@Composable
+fun MainContent(gattCallback: GattCallback) {
+    // 受信データを保持する状態
+    val elapsedTime = remember { mutableStateOf("0") }
+    val aX = remember { mutableStateOf("0.0") }
+    val aY = remember { mutableStateOf("0.0") }
+    val aZ = remember { mutableStateOf("0.0") }
+
+    // データリスナーを設定
+    gattCallback.setDataListener { dataString ->
+        // データをカンマで分割
+        val dataParts = dataString.split(",")
+        if (dataParts.size >= 4) {
+            elapsedTime.value = dataParts[0]
+            aX.value = dataParts[1]
+            aY.value = dataParts[2]
+            aZ.value = dataParts[3]
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 受信したデータを表示
+        Text(text = "Time: ${elapsedTime.value}", modifier = Modifier.align(Alignment.TopCenter).padding(16.dp))
+        Text(text = "X: ${aX.value}", modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
+        Text(text = "Y: ${aY.value}", modifier = Modifier.align(Alignment.TopCenter).padding(16.dp))
+        Text(text = "Z: ${aZ.value}", modifier = Modifier.align(Alignment.TopEnd).padding(16.dp))
+
+        Box(
+            modifier = Modifier.fillMaxSize(0.9f),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            GreetingButton(gattCallback)
+        }
+    }
+}
+
+
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     BLEScanApplicationTheme {
-        GreetingButton()
+        GreetingButton(GattCallback()) // 仮の引数としてGattCallbackを渡す
     }
 }
+
+
