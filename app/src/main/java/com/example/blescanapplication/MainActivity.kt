@@ -8,9 +8,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.blescanapplication.ui.theme.BLEScanApplicationTheme
@@ -130,7 +133,7 @@ fun GreetingButton(gattCallback: GattCallback) {
             bottom = 12.dp
         )
     ) {
-        Text(text = if (isOn.value) "ON" else "OFF")
+        Text(text = if (isOn.value) "ON" else "OFF" , fontSize = 24.sp)
         Icon(
             imageVector = Icons.Filled.Favorite,
             contentDescription = "Favorite",
@@ -147,6 +150,9 @@ fun MainContent(gattCallback: GattCallback) {
     val aX = remember { mutableStateOf("0.0") }
     val aY = remember { mutableStateOf("0.0") }
     val aZ = remember { mutableStateOf("0.0") }
+    val gX = remember { mutableStateOf("0.0") }
+    val gY = remember { mutableStateOf("0.0") }
+    val gZ = remember { mutableStateOf("0.0") }
 
     // データリスナーを設定
     gattCallback.setDataListener { dataString ->
@@ -157,24 +163,69 @@ fun MainContent(gattCallback: GattCallback) {
             aX.value = dataParts[1]
             aY.value = dataParts[2]
             aZ.value = dataParts[3]
+            gX.value = dataParts[4]
+            gY.value = dataParts[5]
+            gZ.value = dataParts[6]
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // 受信したデータを表示
-        Text(text = "Time: ${elapsedTime.value}", modifier = Modifier.align(Alignment.TopCenter).padding(16.dp))
-        Text(text = "X: ${aX.value}", modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
-        Text(text = "Y: ${aY.value}", modifier = Modifier.align(Alignment.TopCenter).padding(16.dp))
-        Text(text = "Z: ${aZ.value}", modifier = Modifier.align(Alignment.TopEnd).padding(16.dp))
-
+    // 全体を Column でレイアウト
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp) // 画面の余白を設定
+    ) {
+        // 中央に加速度と角速度を配置
         Box(
-            modifier = Modifier.fillMaxSize(0.9f),
-            contentAlignment = Alignment.BottomCenter
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f), // 残りのスペースを全て占める
+            contentAlignment = Alignment.Center // 中央に配置
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // 加速度データを表示
+                Text(text = "加速度:", fontSize = 24.sp)
+
+                Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
+
+                Text(text = "X: ${aX.value}", fontSize = 24.sp)
+                Text(text = "Y: ${aY.value}", fontSize = 24.sp)
+                Text(text = "Z: ${aZ.value}", fontSize = 24.sp)
+
+                Spacer(modifier = Modifier.size(64.dp)) // 少しスペースを追加
+
+                // 角速度データを表示
+                Text(text = "角速度:", fontSize = 24.sp)
+
+                Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
+
+                Text(text = "X: ${gX.value}", fontSize = 24.sp)
+                Text(text = "Y: ${gY.value}", fontSize = 24.sp)
+                Text(text = "Z: ${gZ.value}", fontSize = 24.sp)
+
+                Spacer(modifier = Modifier.size(64.dp)) // 少しスペースを追加
+
+                Text(text = "経過時間:", fontSize = 24.sp)
+
+                Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
+
+                Text(text = "Time: ${elapsedTime.value} ms", fontSize = 24.sp)
+
+
+            }
+        }
+
+        // 下部にボタンを配置
+        Box(
+            modifier = Modifier.fillMaxWidth()
+            .padding(bottom = 32.dp),
+            contentAlignment = Alignment.BottomCenter // ボタンは下部中央に配置
         ) {
             GreetingButton(gattCallback)
         }
     }
 }
+
 
 
 @Preview(showBackground = true)
