@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -38,16 +39,18 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.blescanapplication.ui.theme.BLEScanApplicationTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var gattCallback: GattCallback
-    private lateinit var csvExporter: CSVExporter
     private var accelerationData: String by mutableStateOf("時間, x, y, z")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        val mainView=MainView()
         // 必要なパーミッションのリスト
         val permissions = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -63,7 +66,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // CSVExporterの初期化
-        csvExporter = CSVExporter(this)
+//        csvExporter = CSVExporter(this)
 
         // BLEデバイスのスキャンを開始
         gattCallback = GattCallback()
@@ -78,7 +81,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BLEScanApplicationTheme {
-                MainContent(gattCallback, context = this@MainActivity)
+                mainView.MainContent(gattCallback, context = this@MainActivity)
             }
         }
     }
@@ -102,147 +105,154 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-@Composable
-fun GreetingButton(gattCallback: GattCallback, csvExporter: CSVExporter) {
-    // ボタンの状態を保持する
-    val isOn = remember { mutableStateOf(false) }
-
-    Button(
-        onClick = {
-            // ボタンがクリックされたときに状態を切り替え
-            isOn.value = !isOn.value
+class MainView{
+    var csvExporter = mutableStateOf<CSVExporter?>(null) // 初期化
 
 
-            // 書き込みたい値を決定
-            val valueToWrite = if (isOn.value) {
 
-                byteArrayOf(0x00)
-            } else {
-                csvExporter.closeFiles()
-                byteArrayOf(0x01)
+    @Composable
+    fun MainContent(gattCallback: GattCallback, context: Context) {
+        // 受信データを保持する状態
+        val elapsedTime = remember { mutableStateOf("0") }
+        val aX = remember { mutableStateOf("0.0") }
+        val aY = remember { mutableStateOf("0.0") }
+        val aZ = remember { mutableStateOf("0.0") }
+        val gX = remember { mutableStateOf("0.0") }
+        val gY = remember { mutableStateOf("0.0") }
+        val gZ = remember { mutableStateOf("0.0") }
+
+        gattCallback.setDataListener { dataString ->
+            val dataParts = dataString.split(",")
+            if (dataParts.size >= 7) {
+                elapsedTime.value = dataParts[0]
+                aX.value = dataParts[1]
+                aY.value = dataParts[2]
+                aZ.value = dataParts[3]
+                gX.value = dataParts[4]
+                gY.value = dataParts[5]
+                gZ.value = dataParts[6]
+                if (csvExporter.value!=null){
+                    // 加速度データをCSVに保存
+                    csvExporter.value!!.appendAccelData(elapsedTime.value, aX.value, aY.value, aZ.value)
+                    // 角速度データをCSVに保存
+                    csvExporter.value!!.appendGyroData(elapsedTime.value, gX.value, gY.value, gZ.value)
+                }
+
             }
-            // BluetoothGattに値を書き込む
-            gattCallback.writeValueToCharacteristic(valueToWrite)
 
-            if (isOn.value) {
-                // デバイスがONになるとき、CSVファイルを作成
-                csvExporter.createFiles()
-            } else {
 
-            }
-        },
-        contentPadding = PaddingValues(
-            start = 20.dp,
-            top = 12.dp,
-            end = 20.dp,
-            bottom = 12.dp
-        )
-    ) {
-        Text(text = if (isOn.value) "ON" else "OFF", fontSize = 24.sp)
-        Icon(
-            imageVector = Icons.Filled.Favorite,
-            contentDescription = "Favorite",
-            modifier = Modifier.size(ButtonDefaults.IconSize)
-        )
-        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-    }
-}
 
-@Composable
-fun MainContent(gattCallback: GattCallback, context: Context) {
-    val csvExporter = CSVExporter(context)
-    // 受信データを保持する状態
-    val elapsedTime = remember { mutableStateOf("0") }
-    val aX = remember { mutableStateOf("0.0") }
-    val aY = remember { mutableStateOf("0.0") }
-    val aZ = remember { mutableStateOf("0.0") }
-    val gX = remember { mutableStateOf("0.0") }
-    val gY = remember { mutableStateOf("0.0") }
-    val gZ = remember { mutableStateOf("0.0") }
-
-    gattCallback.setDataListener { dataString ->
-        val dataParts = dataString.split(",")
-        if (dataParts.size >= 7) {
-            elapsedTime.value = dataParts[0]
-            aX.value = dataParts[1]
-            aY.value = dataParts[2]
-            aZ.value = dataParts[3]
-            gX.value = dataParts[4]
-            gY.value = dataParts[5]
-            gZ.value = dataParts[6]
-
-            // 加速度データをCSVに保存
-            csvExporter.appendAccelData(elapsedTime.value, aX.value, aY.value, aZ.value)
-            // 角速度データをCSVに保存
-            csvExporter.appendGyroData(elapsedTime.value, gX.value, gY.value, gZ.value)
         }
 
-
-
-    }
-
-    // 全体を Column でレイアウト
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp) // 画面の余白を設定
-    ) {
-        // 中央に加速度と角速度を配置
-        Box(
+        // 全体を Column でレイアウト
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f), // 残りのスペースを全て占める
-            contentAlignment = Alignment.Center // 中央に配置
+                .fillMaxSize()
+                .padding(16.dp) // 画面の余白を設定
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // 加速度データを表示
-                Text(text = "加速度:", fontSize = 24.sp)
+            // 中央に加速度と角速度を配置
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f), // 残りのスペースを全て占める
+                contentAlignment = Alignment.Center // 中央に配置
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // 加速度データを表示
+                    Text(text = "加速度:", fontSize = 24.sp)
 
-                Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
+                    Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
 
-                Text(text = "X: ${aX.value}", fontSize = 24.sp)
-                Text(text = "Y: ${aY.value}", fontSize = 24.sp)
-                Text(text = "Z: ${aZ.value}", fontSize = 24.sp)
+                    Text(text = "X: ${aX.value}", fontSize = 24.sp)
+                    Text(text = "Y: ${aY.value}", fontSize = 24.sp)
+                    Text(text = "Z: ${aZ.value}", fontSize = 24.sp)
 
-                Spacer(modifier = Modifier.size(64.dp)) // 少しスペースを追加
+                    Spacer(modifier = Modifier.size(64.dp)) // 少しスペースを追加
 
-                // 角速度データを表示
-                Text(text = "角速度:", fontSize = 24.sp)
+                    // 角速度データを表示
+                    Text(text = "角速度:", fontSize = 24.sp)
 
-                Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
+                    Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
 
-                Text(text = "X: ${gX.value}", fontSize = 24.sp)
-                Text(text = "Y: ${gY.value}", fontSize = 24.sp)
-                Text(text = "Z: ${gZ.value}", fontSize = 24.sp)
+                    Text(text = "X: ${gX.value}", fontSize = 24.sp)
+                    Text(text = "Y: ${gY.value}", fontSize = 24.sp)
+                    Text(text = "Z: ${gZ.value}", fontSize = 24.sp)
 
-                Spacer(modifier = Modifier.size(64.dp)) // 少しスペースを追加
+                    Spacer(modifier = Modifier.size(64.dp)) // 少しスペースを追加
 
-                Text(text = "経過時間:", fontSize = 24.sp)
+                    Text(text = "経過時間:", fontSize = 24.sp)
 
-                Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
+                    Spacer(modifier = Modifier.size(16.dp)) // 少しスペースを追加
 
-                Text(text = "Time: ${elapsedTime.value} ms", fontSize = 24.sp)
+                    Text(text = "Time: ${elapsedTime.value} ms", fontSize = 24.sp)
+                }
+            }
+
+            // 下部にボタンを配置
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(bottom = 32.dp),
+                contentAlignment = Alignment.BottomCenter // 下に配置
+            ) {
+                GreetingButton(gattCallback,context)
             }
         }
+    }
 
-        // 下部にボタンを配置
-        Box(
-            modifier = Modifier.fillMaxWidth()
-                .padding(bottom = 32.dp),
-            contentAlignment = Alignment.BottomCenter // 下に配置
+    @Composable
+    fun GreetingButton(gattCallback: GattCallback,context: Context) {
+        // ボタンの状態を保持する
+        val isOn = remember { mutableStateOf(false) }
+
+        Button(
+            onClick = {
+                // ボタンがクリックされたときに状態を切り替え
+                isOn.value = !isOn.value
+
+                // 書き込みたい値を決定
+                val valueToWrite = if (isOn.value) {
+                    // デバイスがONになるとき、CSVファイルを作成
+                    csvExporter.value = CSVExporter(
+                        context,
+                        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date()) // Date()に括弧を追加
+                    )// ON時にファイルを作成
+                    Log.d("csv","書記官長"+SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date()))
+                    byteArrayOf(0x00) // デバイスをONにするための値
+                } else {
+                    // デバイスがOFFになるとき、CSVファイルを閉じる
+                    csvExporter.value!!.closeFiles() // OFF時にファイルを閉じる
+                    byteArrayOf(0x01) // デバイスをOFFにするための値
+                }
+
+                // BluetoothGattに値を書き込む
+                gattCallback.writeValueToCharacteristic(valueToWrite)
+            },
+
+            contentPadding = PaddingValues(
+                start = 20.dp,
+                top = 12.dp,
+                end = 20.dp,
+                bottom = 12.dp
+            )
         ) {
-            GreetingButton(gattCallback,csvExporter)
+            Text(text = if (isOn.value) "ON" else "OFF", fontSize = 24.sp)
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = "Favorite",
+                modifier = Modifier.size(ButtonDefaults.IconSize)
+            )
+            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
         }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    BLEScanApplicationTheme {
-        val context = LocalContext.current // Contextを取得
-        val csvExporter = CSVExporter(context) // CSVExporterのインスタンスを作成
-        GreetingButton(GattCallback(), csvExporter)
-    }
+//    BLEScanApplicationTheme {
+//        val context = LocalContext.current // Contextを取得
+//        val csvExporter = CSVExporter(context) // CSVExporterのインスタンスを作成
+//        GreetingButton(GattCallback(), csvExporter)
+//    }
 }

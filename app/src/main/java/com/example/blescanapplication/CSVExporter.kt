@@ -9,11 +9,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class CSVExporter(private val context: Context) {
+class CSVExporter(private val context: Context,fileName:String) {
 
-    private val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-    private val accelFileName = "${dateFormat.format(Date())}_acc.csv"
-    private val gyroFileName = "${dateFormat.format(Date())}_gyro.csv"
+    //private val dateFormat =
+    private val accelFileName = "${fileName}_acc.csv"
+    private val gyroFileName = "${fileName}_gyro.csv"
     private var accelCsvFile: File? = null
     private var gyroCsvFile: File? = null
     private var filesCreated = false
@@ -33,7 +33,7 @@ class CSVExporter(private val context: Context) {
                 if (!accelCsvFile!!.exists()) {
                     accelCsvFile!!.createNewFile()
                     val writer = FileWriter(accelCsvFile)
-                    writer.append("Time,Accel_X,Accel_Y,Accel_Z\n")
+                    writer.append("time,x,y,z\n")
                     writer.flush()
                     writer.close()
                 }
@@ -41,7 +41,7 @@ class CSVExporter(private val context: Context) {
                 if (!gyroCsvFile!!.exists()) {
                     gyroCsvFile!!.createNewFile()
                     val writer = FileWriter(gyroCsvFile)
-                    writer.append("Time,Gyro_X,Gyro_Y,Gyro_Z\n")
+                    writer.append("time,x,y,z\n")
                     writer.flush()
                     writer.close()
                 }
